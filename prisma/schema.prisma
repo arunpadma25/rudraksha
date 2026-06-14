@@ -1,0 +1,133 @@
+// Rudraksha store data model.
+// SQLite for zero-config local dev. To move to Postgres later, change the
+// datasource provider and DATABASE_URL, then run `npx prisma migrate dev`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         String    @default("USER") // USER | ADMIN
+  createdAt    DateTime  @default(now())
+  orders       Order[]
+  addresses    Address[]
+  reviews      Review[]
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName   String
+  phone      String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  country    String  @default("IN")
+  isDefault  Boolean @default(false)
+}
+
+model Product {
+  id           String      @id @default(cuid())
+  slug         String      @unique
+  name         String
+  mukhi        Int // number of faces; 0 for special/combination beads
+  origin       String      @default("Nepal") // Nepal | Java | India
+  shortDesc    String
+  description  String
+  benefits     String // newline-separated bullet points
+  rulingPlanet String?
+  deity        String?
+  mantra       String?
+  priceInr     Int // base price in INR (whole rupees)
+  compareAtInr Int? // optional original/strike-through price
+  stock        Int            @default(10)
+  featured     Boolean        @default(false)
+  active       Boolean        @default(true)
+  image        String? // primary/default image URL (denormalized); falls back to generated SVG
+  ratingAvg    Float          @default(0) // denormalized average rating
+  ratingCount  Int            @default(0) // denormalized number of reviews
+  createdAt    DateTime       @default(now())
+  orderItems   OrderItem[]
+  images       ProductImage[]
+  reviews      Review[]
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  authorName String
+  rating     Int // 1..5
+  comment    String
+  createdAt  DateTime @default(now())
+
+  @@index([productId])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id])
+  email         String
+  fullName      String
+  phone         String
+
+  // Pricing snapshot. Base amounts are always stored in INR; currency/fxRate
+  // capture what the customer actually saw at purchase time.
+  currency      String      @default("INR")
+  fxRate        Float       @default(1) // 1 INR = fxRate * currency
+  subtotalInr   Int
+  shippingInr   Int         @default(0)
+  totalInr      Int
+
+  status        String      @default("PENDING") // PENDING | PAID | SHIPPED | DELIVERED | CANCELLED
+  paymentMethod String      @default("COD") // COD | RAZORPAY | MOCK
+  paymentId     String?
+
+  line1         String
+  line2         String?
+  city          String
+  state         String
+  postalCode    String
+  country       String      @default("IN")
+
+  createdAt     DateTime    @default(now())
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  name      String
+  mukhi     Int
+  priceInr  Int
+  quantity  Int
+}
