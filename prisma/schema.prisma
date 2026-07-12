@@ -1,13 +1,15 @@
 // Rudraksha store data model.
-// SQLite for zero-config local dev. To move to Postgres later, change the
-// datasource provider and DATABASE_URL, then run `npx prisma migrate dev`.
+// PostgreSQL: required for serverless/production hosting (e.g. Vercel), where
+// the filesystem is ephemeral and SQLite would not persist. DATABASE_URL points
+// at a hosted Postgres instance (Neon, Vercel Postgres, Supabase, etc.).
+// For local dev, run a local Postgres or point DATABASE_URL at the same DB.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

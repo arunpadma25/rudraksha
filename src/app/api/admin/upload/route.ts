@@ -46,8 +46,24 @@ export async function POST(req: NextRequest) {
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const filename = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
 
+  // On serverless hosts (e.g. Vercel) the filesystem is read-only/ephemeral, so
+  // persist to Vercel Blob when configured. Falls back to the local filesystem
+  // for development where BLOB_READ_WRITE_TOKEN is not set.
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    try {
+      const { put } = await import("@vercel/blob");
+      const blob = await put(`uploads/${filename}`, bytes, {
+        access: "public",
+        contentType: file.type,
+      });
+      return NextResponse.json({ ok: true, url: blob.url });
+    } catch {
+      return NextResponse.json({ error: "Could not save the file." }, { status: 500 });
+    }
+  }
+
+  const uploadDir = path.join(process.cwd(), "public", "uploads");
   try {
     await mkdir(uploadDir, { recursive: true });
     await writeFile(path.join(uploadDir, filename), bytes);
