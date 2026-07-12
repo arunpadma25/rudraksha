@@ -42,9 +42,9 @@ export function LogoMark({ className }: { className?: string }) {
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cn("flex items-center gap-2", className)}>
-      <LogoMark className="h-9 w-9 drop-shadow-sm" />
-      <span className="font-serif text-lg font-bold text-brand-800 sm:text-xl">
+    <span className={cn("flex min-w-0 items-center gap-2", className)}>
+      <LogoMark className="h-9 w-9 shrink-0 drop-shadow-sm" />
+      <span className="truncate font-serif text-base font-bold text-brand-800 sm:text-xl">
         Rudraksha <span className="text-brand-500">Sacred</span>
       </span>
     </span>

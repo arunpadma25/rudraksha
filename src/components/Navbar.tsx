@@ -43,8 +43,8 @@ export function Navbar({ user }: { user: SessionUser | null }) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-brand-100 bg-brand-50/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" aria-label="Rudraksha Sacred home">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4">
+        <Link href="/" aria-label="Rudraksha Sacred home" className="min-w-0 shrink">
           <Logo />
         </Link>
 
@@ -59,10 +59,12 @@ export function Navbar({ user }: { user: SessionUser | null }) {
           <SearchBar />
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
           <CurrencySwitcher />
 
-          <WishlistNavButton />
+          <span className="hidden sm:block">
+            <WishlistNavButton />
+          </span>
 
           <button
             onClick={openCart}
