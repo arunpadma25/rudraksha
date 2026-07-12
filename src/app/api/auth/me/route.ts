@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getSessionUser();
   return NextResponse.json(
-    { user },
+    { user, authenticated: Boolean(user), name: user?.name ?? null },
     { headers: { "Cache-Control": "no-store" } }
   );
 }

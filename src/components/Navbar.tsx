@@ -11,28 +11,16 @@ import { WishlistNavButton } from "@/components/WishlistButton";
 import type { SessionUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-export function Navbar({ user: initialUser }: { user: SessionUser | null }) {
+export function Navbar({ user }: { user: SessionUser | null }) {
   const count = useCart((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
   const openCart = useUI((s) => s.openCart);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 
-  // The root layout may be served from a static/CDN cache, in which case the
-  // server-provided `user` is stale (often null). Reconcile against the live
-  // session so the navbar always reflects who is actually logged in.
-  const [user, setUser] = useState<SessionUser | null>(initialUser);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/auth/me", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (active && data) setUser(data.user ?? null);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
+  // The layout renders dynamically (it reads the session cookie), so `user` is
+  // always the authoritative, up-to-date auth state. Login calls router.refresh
+  // and logout does a full navigation, both of which re-render this with a
+  // fresh value — no client-side reconcile needed.
 
   const accountRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
