@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getProducts, getOrigins, type ProductFilters } from "@/lib/queries";
+import { getProducts, getOrigins, getMukhiOptions, type ProductFilters } from "@/lib/queries";
 import { ProductCard } from "@/components/ProductCard";
 
 export const metadata = { title: "Shop Rudraksha Beads" };
@@ -9,7 +9,16 @@ type SearchParams = Promise<{
   origin?: string;
   featured?: string;
   sort?: string;
+  mukhi?: string;
+  minPrice?: string;
+  maxPrice?: string;
 }>;
+
+function parsePositiveInt(value: string | undefined): number | undefined {
+  if (value === undefined || value.trim() === "") return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined;
+}
 
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
@@ -18,12 +27,15 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
     search: sp.search?.trim() || undefined,
     origin: sp.origin || undefined,
     featured: sp.featured === "1",
+    mukhi: parsePositiveInt(sp.mukhi),
+    minPriceInr: parsePositiveInt(sp.minPrice),
+    maxPriceInr: parsePositiveInt(sp.maxPrice),
     sort: (["newest", "price-asc", "price-desc", "mukhi-asc"].includes(sp.sort ?? "")
       ? sp.sort
       : "newest") as ProductFilters["sort"],
   };
 
-  const products = await getProducts(filters);
+  const [products, mukhiOptions] = await Promise.all([getProducts(filters), getMukhiOptions()]);
   const origins = getOrigins();
 
   return (
@@ -62,6 +74,45 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
               <option key={o} value={o}>{o}</option>
             ))}
           </select>
+        </div>
+        <div className="flex flex-col">
+          <label className="mb-1 text-xs font-semibold uppercase text-brand-500">Mukhi</label>
+          <select
+            name="mukhi"
+            defaultValue={sp.mukhi ?? ""}
+            className="rounded-lg border border-brand-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+          >
+            <option value="">Any mukhi</option>
+            {mukhiOptions.map((m) => (
+              <option key={m} value={m}>
+                {m > 0 ? `${m} Mukhi` : "Special / Combination"}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col">
+          <label className="mb-1 text-xs font-semibold uppercase text-brand-500">Price (₹)</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              name="minPrice"
+              min={0}
+              inputMode="numeric"
+              defaultValue={sp.minPrice ?? ""}
+              placeholder="Min"
+              className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+            />
+            <span className="text-brand-400">–</span>
+            <input
+              type="number"
+              name="maxPrice"
+              min={0}
+              inputMode="numeric"
+              defaultValue={sp.maxPrice ?? ""}
+              placeholder="Max"
+              className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+            />
+          </div>
         </div>
         <div className="flex flex-col">
           <label className="mb-1 text-xs font-semibold uppercase text-brand-500">Sort by</label>

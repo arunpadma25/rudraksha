@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProductBySlug, getRelatedProducts, getReviews } from "@/lib/queries";
 import { productImageUrl } from "@/lib/utils";
+import { env } from "@/lib/env";
 import { getSessionUser } from "@/lib/auth";
 import { Price } from "@/components/Price";
 import { ProductBuyBox } from "@/components/ProductBuyBox";
@@ -47,8 +48,45 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
     ["Mantra", product.mantra],
   ];
 
+  // Structured data for rich Google results (price, availability, rating).
+  const primaryImage = galleryImages[0];
+  const absoluteImage = primaryImage.startsWith("http")
+    ? primaryImage
+    : `${env.siteUrl}${primaryImage}`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.shortDesc,
+    image: [absoluteImage],
+    sku: product.id,
+    category: product.mukhi > 0 ? `${product.mukhi} Mukhi Rudraksha` : "Special Rudraksha",
+    brand: { "@type": "Brand", name: "Rudraksha Sacred" },
+    offers: {
+      "@type": "Offer",
+      url: `${env.siteUrl}/products/${product.slug}`,
+      priceCurrency: "INR",
+      price: product.priceInr,
+      availability:
+        product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    },
+    ...(product.ratingCount > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: Number(product.ratingAvg.toFixed(1)),
+            reviewCount: product.ratingCount,
+          },
+        }
+      : {}),
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <nav className="mb-6 text-sm text-brand-500">
         <Link href="/" className="hover:text-brand-700">Home</Link> /{" "}
         <Link href="/products" className="hover:text-brand-700">Shop</Link> /{" "}

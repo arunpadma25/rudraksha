@@ -21,6 +21,9 @@ export type ProductFilters = {
   search?: string;
   origin?: string;
   featured?: boolean;
+  mukhi?: number;
+  minPriceInr?: number;
+  maxPriceInr?: number;
   sort?: "newest" | "price-asc" | "price-desc" | "mukhi-asc";
 };
 
@@ -29,11 +32,22 @@ export async function getProducts(filters: ProductFilters = {}) {
 
   if (filters.featured) where.featured = true;
   if (filters.origin) where.origin = filters.origin;
+  if (typeof filters.mukhi === "number") where.mukhi = filters.mukhi;
+
+  if (typeof filters.minPriceInr === "number" || typeof filters.maxPriceInr === "number") {
+    where.priceInr = {
+      ...(typeof filters.minPriceInr === "number" ? { gte: filters.minPriceInr } : {}),
+      ...(typeof filters.maxPriceInr === "number" ? { lte: filters.maxPriceInr } : {}),
+    };
+  }
+
   if (filters.search) {
+    // Case-insensitive so "nepal" matches "Nepal" etc. (Postgres `contains` is
+    // case-sensitive by default).
     where.OR = [
-      { name: { contains: filters.search } },
-      { shortDesc: { contains: filters.search } },
-      { description: { contains: filters.search } },
+      { name: { contains: filters.search, mode: "insensitive" } },
+      { shortDesc: { contains: filters.search, mode: "insensitive" } },
+      { description: { contains: filters.search, mode: "insensitive" } },
     ];
   }
 
@@ -43,6 +57,17 @@ export async function getProducts(filters: ProductFilters = {}) {
   else if (filters.sort === "mukhi-asc") orderBy = { mukhi: "asc" };
 
   return prisma.product.findMany({ where, orderBy, select: productCardSelect });
+}
+
+// Distinct mukhi (face-count) values across active products, for the shop filter.
+export async function getMukhiOptions(): Promise<number[]> {
+  const rows = await prisma.product.findMany({
+    where: { active: true },
+    distinct: ["mukhi"],
+    select: { mukhi: true },
+    orderBy: { mukhi: "asc" },
+  });
+  return rows.map((r) => r.mukhi);
 }
 
 export async function getFeaturedProducts(limit = 4) {
