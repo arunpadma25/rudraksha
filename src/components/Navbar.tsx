@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/store/cart";
 import { useUI } from "@/store/ui";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
@@ -11,10 +11,40 @@ import { WishlistNavButton } from "@/components/WishlistButton";
 import type { SessionUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-export function Navbar({ user }: { user: SessionUser | null }) {
+export function Navbar({ user: initialUser }: { user: SessionUser | null }) {
   const count = useCart((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
   const openCart = useUI((s) => s.openCart);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  // The root layout may be served from a static/CDN cache, in which case the
+  // server-provided `user` is stale (often null). Reconcile against the live
+  // session so the navbar always reflects who is actually logged in.
+  const [user, setUser] = useState<SessionUser | null>(initialUser);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (active && data) setUser(data.user ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const accountRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!accountOpen) return;
+    function onClick(e: MouseEvent) {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [accountOpen]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -59,39 +89,91 @@ export function Navbar({ user }: { user: SessionUser | null }) {
             )}
           </button>
 
-          {/* Desktop account area */}
-          <div className="hidden items-center gap-2 lg:flex">
-            {user ? (
-              <div className="flex items-center gap-2">
-                {user.role === "ADMIN" && (
-                  <Link
-                    href="/admin"
-                    className="rounded-lg bg-brand-700 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-800"
-                  >
-                    Admin
-                  </Link>
+          {/* Desktop account menu */}
+          <div
+            ref={accountRef}
+            className="relative hidden lg:block"
+            onMouseEnter={() => setAccountOpen(true)}
+            onMouseLeave={() => setAccountOpen(false)}
+          >
+            <button
+              onClick={() => setAccountOpen((o) => !o)}
+              className={cn(
+                "grid h-10 w-10 place-items-center rounded-full text-brand-800 hover:bg-brand-100",
+                accountOpen && "bg-brand-100"
+              )}
+              aria-label="Account menu"
+              aria-haspopup="menu"
+              aria-expanded={accountOpen}
+            >
+              <UserIcon />
+            </button>
+
+            <div
+              role="menu"
+              className={cn(
+                "absolute right-0 top-full w-56 pt-2 transition",
+                accountOpen ? "visible opacity-100" : "invisible opacity-0"
+              )}
+            >
+              <div className="overflow-hidden rounded-xl border border-brand-100 bg-white py-1 shadow-lg ring-1 ring-black/5">
+                {user ? (
+                  <>
+                    <div className="border-b border-brand-100 px-4 py-3">
+                      <p className="text-sm font-semibold text-brand-900">
+                        Hi, {user.name.split(" ")[0]}
+                      </p>
+                      <p className="truncate text-xs text-brand-500">{user.email}</p>
+                    </div>
+                    {user.role === "ADMIN" && (
+                      <MenuLink href="/admin" onClick={() => setAccountOpen(false)}>
+                        Admin Panel
+                      </MenuLink>
+                    )}
+                    <MenuLink href="/account" onClick={() => setAccountOpen(false)}>
+                      My Account
+                    </MenuLink>
+                    <MenuLink href="/account" onClick={() => setAccountOpen(false)}>
+                      My Orders
+                    </MenuLink>
+                    <MenuLink href="/wishlist" onClick={() => setAccountOpen(false)}>
+                      Wishlist
+                    </MenuLink>
+                    <MenuButton
+                      onClick={() => {
+                        setAccountOpen(false);
+                        openCart();
+                      }}
+                    >
+                      Cart{count > 0 ? ` (${count})` : ""}
+                    </MenuButton>
+                    <div className="my-1 border-t border-brand-100" />
+                    <MenuButton onClick={logout}>Logout</MenuButton>
+                  </>
+                ) : (
+                  <>
+                    <MenuLink href="/login" onClick={() => setAccountOpen(false)}>
+                      Login
+                    </MenuLink>
+                    <MenuLink href="/register" onClick={() => setAccountOpen(false)}>
+                      Create account
+                    </MenuLink>
+                    <div className="my-1 border-t border-brand-100" />
+                    <MenuLink href="/wishlist" onClick={() => setAccountOpen(false)}>
+                      Wishlist
+                    </MenuLink>
+                    <MenuButton
+                      onClick={() => {
+                        setAccountOpen(false);
+                        openCart();
+                      }}
+                    >
+                      Cart{count > 0 ? ` (${count})` : ""}
+                    </MenuButton>
+                  </>
                 )}
-                <Link
-                  href="/account"
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-brand-800 hover:bg-brand-100"
-                >
-                  {user.name.split(" ")[0]}
-                </Link>
-                <button
-                  onClick={logout}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-brand-800 hover:bg-brand-100"
-                >
-                  Logout
-                </button>
               </div>
-            ) : (
-              <Link
-                href="/login"
-                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-              >
-                Login
-              </Link>
-            )}
+            </div>
           </div>
 
           <button
@@ -117,9 +199,11 @@ export function Navbar({ user }: { user: SessionUser | null }) {
           {user ? (
             <>
               {user.role === "ADMIN" && (
-                <Link href="/admin" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2 hover:bg-brand-100">Admin</Link>
+                <Link href="/admin" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2 hover:bg-brand-100">Admin Panel</Link>
               )}
               <Link href="/account" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2 hover:bg-brand-100">My Account</Link>
+              <Link href="/account" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2 hover:bg-brand-100">My Orders</Link>
+              <button onClick={() => { setMenuOpen(false); openCart(); }} className="rounded-lg px-3 py-2 text-left hover:bg-brand-100">Cart{count > 0 ? ` (${count})` : ""}</button>
               <button onClick={() => { setMenuOpen(false); logout(); }} className="rounded-lg px-3 py-2 text-left hover:bg-brand-100">Logout</button>
             </>
           ) : (
@@ -128,6 +212,54 @@ export function Navbar({ user }: { user: SessionUser | null }) {
         </nav>
       </div>
     </header>
+  );
+}
+
+function MenuLink({
+  href,
+  onClick,
+  children,
+}: {
+  href: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      role="menuitem"
+      className="block px-4 py-2 text-sm font-medium text-brand-800 hover:bg-brand-50"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function MenuButton({
+  onClick,
+  children,
+}: {
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      role="menuitem"
+      className="block w-full px-4 py-2 text-left text-sm font-medium text-brand-800 hover:bg-brand-50"
+    >
+      {children}
+    </button>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
   );
 }
 

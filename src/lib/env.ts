@@ -32,8 +32,15 @@ function getJwtSecret(): string {
 
 export const env = {
   isProd,
-  databaseUrl: required("DATABASE_URL"),
-  jwtSecret: getJwtSecret(),
+  // Lazy getters: validation runs only when a value is actually read at
+  // runtime, not on import. This keeps `next build` from failing while
+  // collecting pages that never touch the database or auth.
+  get databaseUrl() {
+    return required("DATABASE_URL");
+  },
+  get jwtSecret() {
+    return getJwtSecret();
+  },
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000",
   razorpay: {
     keyId: process.env.RAZORPAY_KEY_ID || "",
