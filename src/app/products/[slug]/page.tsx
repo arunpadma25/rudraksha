@@ -85,7 +85,8 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
     <div className="mx-auto max-w-7xl px-4 py-10">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // Escape `<` so product content can't break out of the script tag.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       <nav className="mb-6 text-sm text-brand-500">
         <Link href="/" className="hover:text-brand-700">Home</Link> /{" "}

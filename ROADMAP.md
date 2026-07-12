@@ -41,3 +41,12 @@ Future enhancements, grouped by priority. Items are checked off as they ship.
       doesn't read/write live data.
 - [ ] Rotate `JWT_SECRET` and DB credentials for a real production launch.
 - [ ] Migrate `package.json#prisma` config to `prisma.config.ts` (Prisma 7).
+
+## Security follow-ups
+- [x] Bind Razorpay signature to the local order (amount/ownership) in
+      `/api/payment/verify` + constant-time signature compare.
+- [x] Escape `<` in product JSON-LD to prevent script-tag breakout.
+- [ ] Move rate limiting to a shared store (Upstash Redis) — the in-memory
+      limiter is ineffective across serverless instances on Vercel.
+- [ ] Add a Content-Security-Policy header (account for the Razorpay script).
+- [ ] Reduce user enumeration (uniform register/login responses + timing).
